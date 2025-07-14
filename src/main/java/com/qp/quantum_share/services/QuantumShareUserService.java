@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -91,6 +92,11 @@ public class QuantumShareUserService {
 
 	@Autowired
 	AdminService adminService;
+
+	@Autowired
+	RedisService redisService;
+
+	ObjectMapper objectMapper=new ObjectMapper();
 
 	public ResponseEntity<ResponseStructure<String>> login(String emph, String password) {
 		ResponseStructure<String> structure = new ResponseStructure<String>();
@@ -523,15 +529,6 @@ public class QuantumShareUserService {
 			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
 		}
 		boolean creditApplied = userTracking.applyCredit(user);
-//		if (!creditApplied) {
-//			System.out.println("false");
-//			structure.setCode(HttpStatus.NOT_ACCEPTABLE.value());
-//			structure.setMessage("Your package has expired. Please Upgrade your package");
-//			structure.setStatus("error");
-//			structure.setData(null);
-//			structure.setPlatform(null);
-//			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_ACCEPTABLE);
-//		}
 
 		CompletableFuture<Void> redditFuture = CompletableFuture
 				.runAsync(() -> redditService.checkAndRefreshAccessToken(user));
@@ -586,49 +583,72 @@ public class QuantumShareUserService {
 
 	public ResponseEntity<ResponseStructure<String>> fetchConnectedFb(int userId) {
 		ResponseStructure<String> structure = new ResponseStructure<String>();
-		QuantumShareUser user = userDao.fetchUser(userId);
-		if (user == null) {
-			structure.setCode(HttpStatus.NOT_FOUND.value());
-			structure.setMessage("user doesn't exists, please login");
-			structure.setStatus("error");
-			structure.setData(null);
-			structure.setPlatform(null);
-			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
-		}
-		SocialAccounts accounts = user.getSocialAccounts();
-		if (accounts == null || accounts.getFacebookUser() == null) {
-			structure.setCode(119);
-			structure.setMessage("user has not connected facebook platforms");
-			structure.setPlatform("facebook");
-			structure.setStatus("error");
-			structure.setData(null);
-			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
-		}
-		FaceBookUser fbuser = accounts.getFacebookUser();
-		Map<String, Object> data = configure.getMap();
-		data.clear();
-		if (fbuser != null) {
-			List<FacebookPageDetails> pages = fbuser.getPageDetails();
-			Map<String, Object> pagedata = configure.getMap();
-			pagedata.clear();
-			for (FacebookPageDetails page : pages) {
-				pagedata.put(page.getPageName(), page.getPictureUrl());
+		String cacheKey = "connected:facebook:user:" + userId;
+
+		try {
+//			String cached = redisService.get(cacheKey);
+//			System.out.println("cache "+cached);
+//			if (cached != null) {
+//				structure.setCode(HttpStatus.OK.value());
+//				structure.setStatus("success");
+//				structure.setData(cached);
+//				return new ResponseEntity<>(structure, HttpStatus.OK);
+//			}
+			QuantumShareUser user = userDao.fetchUser(userId);
+			if (user == null) {
+				structure.setCode(HttpStatus.NOT_FOUND.value());
+				structure.setMessage("user doesn't exists, please login");
+				structure.setStatus("error");
+				structure.setData(null);
+				structure.setPlatform(null);
+				return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
 			}
-			Map<String, Object> fb = configure.getMap();
-			fb.clear();
-			fb.put("facebookUrl", fbuser.getPictureUrl());
-			fb.put("facebookUsername", fbuser.getFbuserUsername());
-			fb.put("facebookNumberofpages", fbuser.getNoOfFbPages());
-			fb.put("pages_url", pagedata);
-			fb.put("user_id", userId);
-			data.put("facebook", fb);
+			SocialAccounts accounts = user.getSocialAccounts();
+			if (accounts == null || accounts.getFacebookUser() == null) {
+				structure.setCode(119);
+				structure.setMessage("user has not connected facebook platforms");
+				structure.setPlatform("facebook");
+				structure.setStatus("error");
+				structure.setData(null);
+				return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
+			}
+			FaceBookUser fbuser = accounts.getFacebookUser();
+			Map<String, Object> data = configure.getMap();
+			data.clear();
+			if (fbuser != null) {
+				List<FacebookPageDetails> pages = fbuser.getPageDetails();
+				Map<String, Object> pagedata = configure.getMap();
+				pagedata.clear();
+				for (FacebookPageDetails page : pages) {
+					pagedata.put(page.getPageName(), page.getPictureUrl());
+				}
+				Map<String, Object> fb = configure.getMap();
+				fb.clear();
+				fb.put("facebookUrl", fbuser.getPictureUrl());
+				fb.put("facebookUsername", fbuser.getFbuserUsername());
+				fb.put("facebookNumberofpages", fbuser.getNoOfFbPages());
+				fb.put("pages_url", pagedata);
+				fb.put("user_id", userId);
+				data.put("facebook", fb);
+			}
+//			String json = objectMapper.writeValueAsString(data);
+//			redisService.set(cacheKey, json, 300);
+
+			System.out.println("database set");
+			structure.setData(data);
+			structure.setCode(HttpStatus.OK.value());
+			structure.setMessage(null);
+			structure.setStatus("success");
+			structure.setPlatform(null);
+			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.OK);
+		} catch (Exception e) {
+			e.printStackTrace();
+			structure.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+			structure.setMessage("Internal error: " + e.getMessage());
+			structure.setStatus("error");
+			structure.setData(null);
+			return new ResponseEntity<>(structure, HttpStatus.INTERNAL_SERVER_ERROR);
 		}
-		structure.setData(data);
-		structure.setCode(HttpStatus.OK.value());
-		structure.setMessage(null);
-		structure.setStatus("success");
-		structure.setPlatform(null);
-		return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.OK);
 	}
 
 	public ResponseEntity<ResponseStructure<String>> fetchConnectedInsta1(int userId) {
