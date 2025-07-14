@@ -12,6 +12,8 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestClientException;
@@ -147,44 +149,103 @@ public class AiService {
 	        return responseStructure;
 	    }
 
+//	public byte[] generateImage(String textPrompt) {
+//		headers.setContentType(MediaType.APPLICATION_JSON);
+//		headers.setAccept(Collections.singletonList(MediaType.IMAGE_PNG));
+//		headers.setBearerAuth(apiToken);
+//
+//		// Define request body
+//		String requestBody = "{\"text_prompts\": [{\"text\": \"" + textPrompt
+//				+ "\"}],\"cfg_scale\": 7,\"height\": 320,\"width\": 320,\"samples\": 1,\"steps\": 30}";
+//		HttpEntity<String> entity = new HttpEntity<>(requestBody, headers);
+//
+//		try {
+//			// Make the HTTP request
+//			ResponseEntity<byte[]> responseEntity = restTemplate.exchange(apiUrl, HttpMethod.POST, entity,
+//					byte[].class);
+//			// Check response status
+//			HttpStatusCode statusCode = responseEntity.getStatusCode();
+//			if (statusCode == HttpStatus.OK) {
+//				return responseEntity.getBody();
+//			} else {
+//				throw new RuntimeException("Failed to generate image. Status code: " + statusCode.value());
+//			}
+//		} catch (HttpClientErrorException e) {
+//			// Handle client-side errors (4xx)
+//			if (e.getStatusCode() == HttpStatus.UNAUTHORIZED) {
+//				throw new RuntimeException(
+//						"{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Unauthorized access/Token.\"}");
+//			} else {
+//				throw new RuntimeException("{\"status\":" + e.getStatusCode().value()
+//						+ ",\"error\":\"Client Error\",\"message\":\"" + e.getStatusText() + "\"}");
+//			}
+//		} catch (HttpServerErrorException e) {
+//			// Handle server-side errors (5xx)
+//			throw new RuntimeException("{\"status\":" + e.getStatusCode().value()
+//					+ ",\"error\":\"Server Error\",\"message\":\"" + e.getStatusText() + "\"}");
+//		} catch (RestClientException e) {
+//			// Handle other RestClientExceptions
+//			throw new RuntimeException(
+//					"{\"status\":500,\"error\":\"Rest Client Error\",\"message\":\"" + e.getMessage() + "\"}");
+//		}
+//	}
+	
+	
 	public byte[] generateImage(String textPrompt) {
-		headers.setContentType(MediaType.APPLICATION_JSON);
-		headers.setAccept(Collections.singletonList(MediaType.IMAGE_PNG));
-		headers.setBearerAuth(apiToken);
+        // Prepare headers
+    	HttpHeaders headers = new HttpHeaders();
+    	headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+    	headers.setAccept(Collections.singletonList(MediaType.parseMediaType("image/*"))); 
+    	headers.setBearerAuth(apiToken);
 
-		// Define request body
-		String requestBody = "{\"text_prompts\": [{\"text\": \"" + textPrompt
-				+ "\"}],\"cfg_scale\": 7,\"height\": 320,\"width\": 320,\"samples\": 1,\"steps\": 30}";
-		HttpEntity<String> entity = new HttpEntity<>(requestBody, headers);
 
-		try {
-			// Make the HTTP request
-			ResponseEntity<byte[]> responseEntity = restTemplate.exchange(apiUrl, HttpMethod.POST, entity,
-					byte[].class);
-			// Check response status
-			HttpStatusCode statusCode = responseEntity.getStatusCode();
-			if (statusCode == HttpStatus.OK) {
-				return responseEntity.getBody();
-			} else {
-				throw new RuntimeException("Failed to generate image. Status code: " + statusCode.value());
-			}
-		} catch (HttpClientErrorException e) {
-			// Handle client-side errors (4xx)
-			if (e.getStatusCode() == HttpStatus.UNAUTHORIZED) {
-				throw new RuntimeException(
-						"{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Unauthorized access/Token.\"}");
-			} else {
-				throw new RuntimeException("{\"status\":" + e.getStatusCode().value()
-						+ ",\"error\":\"Client Error\",\"message\":\"" + e.getStatusText() + "\"}");
-			}
-		} catch (HttpServerErrorException e) {
-			// Handle server-side errors (5xx)
-			throw new RuntimeException("{\"status\":" + e.getStatusCode().value()
-					+ ",\"error\":\"Server Error\",\"message\":\"" + e.getStatusText() + "\"}");
-		} catch (RestClientException e) {
-			// Handle other RestClientExceptions
-			throw new RuntimeException(
-					"{\"status\":500,\"error\":\"Rest Client Error\",\"message\":\"" + e.getMessage() + "\"}");
-		}
-	}
+        // Ensure form parts are handled as strings
+    	MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+
+    	body.add("prompt", new HttpEntity<>(textPrompt, createPlainTextHeaders()));
+    	body.add("output_format", new HttpEntity<>("webp", createPlainTextHeaders()));
+    	body.add("aspect_ratio", new HttpEntity<>("4:5", createPlainTextHeaders()));
+
+        // Important: use HttpEntity with form data
+        HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
+
+        try {
+            ResponseEntity<byte[]> response = restTemplate.exchange(
+                    "https://api.stability.ai/v2beta/stable-image/generate/core",
+                    HttpMethod.POST,
+                    requestEntity,
+                    byte[].class
+            );
+
+            if (response.getStatusCode() == HttpStatus.OK) {
+                return response.getBody();
+            } else {
+                throw new RuntimeException("Failed to generate image. Status code: " + response.getStatusCode().value());
+            }
+        } catch (HttpClientErrorException e) {
+            // Handle specific errors
+            String responseMsg = e.getResponseBodyAsString();
+            if (e.getStatusCode() == HttpStatus.UNAUTHORIZED) {
+                throw new RuntimeException("{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Invalid token or unauthorized access.\"}");
+            } else if (e.getStatusCode().value() == 402) {
+                throw new RuntimeException("{\"status\":402,\"error\":\"Insufficient Credits\",\"details\":" + responseMsg + "}");
+            } else if (e.getStatusCode() == HttpStatus.BAD_REQUEST) {
+                throw new RuntimeException("{\"status\":400,\"error\":\"Bad Request\",\"details\":" + responseMsg + "}");
+            } else {
+                throw new RuntimeException("{\"status\":" + e.getStatusCode().value()
+                        + ",\"error\":\"Client Error\",\"message\":\"" + e.getStatusText() + "\",\"details\":" + responseMsg + "}");
+            }
+        } catch (HttpServerErrorException e) {
+            throw new RuntimeException("{\"status\":" + e.getStatusCode().value()
+                    + ",\"error\":\"Server Error\",\"message\":\"" + e.getStatusText() + "\"}");
+        } catch (RestClientException e) {
+            throw new RuntimeException("{\"status\":500,\"error\":\"Rest Client Error\",\"message\":\"" + e.getMessage() + "\"}");
+        }
+    }
+
+    private HttpHeaders createPlainTextHeaders() {
+        HttpHeaders textHeaders = new HttpHeaders();
+        textHeaders.setContentType(MediaType.TEXT_PLAIN);
+        return textHeaders;
+    }
 }
