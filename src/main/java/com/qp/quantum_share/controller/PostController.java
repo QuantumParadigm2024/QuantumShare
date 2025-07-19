@@ -248,7 +248,7 @@ public class PostController {
     @PostMapping("/post/file/linkedIn")
     public ResponseEntity<ResponseWrapper> createPostTOProfile(MultipartFile mediaFile,
                                                                @ModelAttribute MediaPost mediaPost) {
-        if (mediaFile.isEmpty() || mediaFile == null) {
+        if (mediaFile.isEmpty()) {
             ResponseStructure<String> structure = new ResponseStructure<String>();
             structure.setMessage("Invalid file type");
             structure.setCode(HttpStatus.NOT_ACCEPTABLE.value());

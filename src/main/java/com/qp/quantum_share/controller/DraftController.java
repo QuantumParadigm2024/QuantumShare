@@ -23,15 +23,27 @@ public class DraftController {
 
 
     @PostMapping("/post/saveDraft")
-    public ResponseEntity<ResponseStructure<String>> saveDraft(@ModelAttribute Drafts mediaPost, @RequestHeader HttpHeaders request, MultipartFile file) {
+    public ResponseEntity<ResponseStructure<String>> saveDraft(MultipartFile mediaFile, @ModelAttribute Drafts mediaPost, @RequestHeader HttpHeaders request) {
         Object userId = commonMethod.validateToken(request.get("authorization").get(0));
-        return draftService.saveDraft(Integer.parseInt(userId.toString()), mediaPost, file);
+        return draftService.saveDraft(Integer.parseInt(userId.toString()), mediaPost, mediaFile);
     }
 
     @GetMapping("get/drafts")
     public ResponseEntity<ResponseStructure<String>> getDraft(@RequestHeader HttpHeaders request) {
         Object userId = commonMethod.validateToken(request.get("authorization").get(0));
         return draftService.getDraft(Integer.parseInt(userId.toString()));
+    }
+
+    @DeleteMapping("/delete/draft")
+    public ResponseEntity<?> deleteDraft(@RequestParam int draftId, @RequestHeader HttpHeaders request) {
+        Object userId = commonMethod.validateToken(request.get("authorization").get(0));
+        return draftService.deleteDraft(Integer.parseInt(userId.toString()), draftId);
+    }
+
+    @PostMapping("/update/draft")
+    public ResponseEntity<?> modifyDraft(@RequestParam int draftId, @RequestHeader HttpHeaders request, @ModelAttribute Drafts drafts) {
+        Object userId = commonMethod.validateToken(request.get("authorization").get(0));
+        return draftService.modifyDraft(Integer.parseInt(userId.toString()), draftId, drafts);
     }
 
     @PostMapping("post/draft/facebook")
@@ -65,7 +77,7 @@ public class DraftController {
     }
 
     @PostMapping("post/draft/reddit")
-    public ResponseEntity<?> postDraftReddit(@RequestParam int draftId, @RequestHeader HttpHeaders request, @RequestParam("sr") String subreddit) {
+    public ResponseEntity<?> postDraftReddit(@RequestParam int draftId, @RequestHeader HttpHeaders request, @RequestParam(name = "sr") String subreddit) {
         Object userId = commonMethod.validateToken(request.get("authorization").get(0));
         return draftService.postDraftOnReddit(Integer.parseInt(userId.toString()), draftId, subreddit);
     }
@@ -76,9 +88,5 @@ public class DraftController {
         return draftService.postDraftOnPinterest(Integer.parseInt(userId.toString()), draftId);
     }
 
-    @DeleteMapping("/delete/draft")
-    public ResponseEntity<?> deleteDraft(@RequestParam int draftId, @RequestHeader HttpHeaders request) {
-        Object userId = commonMethod.validateToken(request.get("authorization").get(0));
-        return draftService.deleteDraft(Integer.parseInt(userId.toString()), draftId);
-    }
+
 }
