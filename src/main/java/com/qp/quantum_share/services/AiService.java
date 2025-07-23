@@ -149,6 +149,55 @@ public class AiService {
 	        return responseStructure;
 	    }
 
+	    
+	    
+	    public ResponseStructure<String> generateChatConvo(String userQuestion) {
+	      
+	    	String prompt = "You are an assistant. Provide answers in this strict format:\n\n" +
+	    	        "1. **Definition:** One-line, max 20 words.\n" +
+	    	        "2. **Key Points:** 5 bullet points, do not explain those bullet points.\n" +
+	    	        "3. **Conclusion:** One sentence summarizing. Max 15 words.\n" +
+	    	        "End strictly with 'Done.' No extra information, no elaboration beyond limits.\n\n" +
+	    	        "Now answer the User Question: " + userQuestion;
+
+	        String apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey;
+
+	        HttpHeaders headers = new HttpHeaders();
+	        headers.setContentType(MediaType.APPLICATION_JSON);
+
+	        String requestBody = "{\n" +
+	                "  \"contents\": [\n" +
+	                "    { \"role\": \"user\", \"parts\": [{ \"text\": \"" + prompt + "\" }] }\n" +
+	                "  ]\n" +
+	                "}";
+
+	        HttpEntity<String> entity = new HttpEntity<>(requestBody, headers);
+	        ResponseEntity<String> response = restTemplate.exchange(apiUrl, HttpMethod.POST, entity, String.class);
+
+	        ResponseStructure<String> responseStructure = new ResponseStructure<>();
+	        try {
+	            ObjectMapper objectMapper = new ObjectMapper();
+	            JsonNode rootNode = objectMapper.readTree(response.getBody());
+	            String fullText = rootNode.path("candidates").get(0).path("content").path("parts").get(0).path("text").asText();
+
+	            // Truncate after 'Done.' to remove anything extra
+	            String cleanedText = fullText.split("Done\\.", 2)[0] + "Done.";
+
+	            responseStructure.setStatus("success");
+	            responseStructure.setMessage("AI content generated successfully");
+	            responseStructure.setData(cleanedText);
+
+	        } catch (Exception e) {
+	            responseStructure.setStatus("error");
+	            responseStructure.setMessage("Failed to parse AI response: " + e.getMessage());
+	            responseStructure.setData(null);
+	            responseStructure.setCode(500);
+	        }
+	        return responseStructure;
+	    }
+
+	    
+	    
 //	public byte[] generateImage(String textPrompt) {
 //		headers.setContentType(MediaType.APPLICATION_JSON);
 //		headers.setAccept(Collections.singletonList(MediaType.IMAGE_PNG));

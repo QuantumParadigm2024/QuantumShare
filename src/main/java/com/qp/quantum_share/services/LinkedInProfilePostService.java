@@ -1,6 +1,7 @@
 package com.qp.quantum_share.services;
 
 import java.io.IOException;
+import java.util.Collections;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
@@ -143,61 +144,111 @@ public class LinkedInProfilePostService {
 
 	}
 
-	// step 3
 	private ResponseStructure<String> createLinkedInPost(String mediaAsset, String caption, String mediaType,
-			String accessToken, String profileURN, int userId, String profileName, long size) {
-		ResponseStructure<String> response = new ResponseStructure<String>();
+	        String accessToken, String profileURN, int userId, String profileName, long size) {
 
-		try {
-			headers.setContentType(MediaType.APPLICATION_JSON);
-			headers.set("Authorization", "Bearer " + accessToken);
+	    ResponseStructure<String> response = new ResponseStructure<>();
 
-			String shareMediaCategory = mediaType.equals("image") ? "IMAGE" : "VIDEO";
+	    try {
+	        HttpHeaders headers = new HttpHeaders();
+	        headers.setBearerAuth(accessToken);
+	        headers.setContentType(MediaType.APPLICATION_JSON);
+	        headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
+	        headers.set("X-Restli-Protocol-Version", "2.0.0");
+	        headers.set("LinkedIn-Version", "202506");
 
-			String requestBody = "{\n" + "    \"author\": \"urn:li:person:" + profileURN + "\",\n"
-					+ "    \"lifecycleState\": \"PUBLISHED\",\n" + "    \"specificContent\": {\n"
-					+ "        \"com.linkedin.ugc.ShareContent\": {\n" + "            \"shareCommentary\": {\n"
-					+ "                \"text\": \"" + caption + "\"\n" + "            },\n"
-					+ "            \"shareMediaCategory\": \"" + shareMediaCategory + "\",\n"
-					+ "            \"media\": [\n" + "                {\n"
-					+ "                    \"status\": \"READY\",\n" + "                    \"description\": {\n"
-					+ "                        \"text\": \"Center stage!\"\n" + "                    },\n"
-					+ "                    \"media\": \"" + mediaAsset + "\",\n" + "                    \"title\": {\n"
-					+ "                        \"text\": \"LinkedIn Talent Connect 2021\"\n" + "                    }\n"
-					+ "                }\n" + "            ]\n" + "        }\n" + "    },\n" + "    \"visibility\": {\n"
-					+ "        \"com.linkedin.ugc.MemberNetworkVisibility\": \"PUBLIC\"\n" + "    }\n" + "}";
+	        String shareMediaCategory = mediaType.equals("image") ? "IMAGE" : "VIDEO";
 
-			HttpEntity<String> requestEntity = config.getHttpEntity(requestBody, headers);
-			ResponseEntity<JsonNode> responseEntity = restTemplate.exchange("https://api.linkedin.com/v2/ugcPosts",
-					HttpMethod.POST, requestEntity, JsonNode.class);
+	        String requestBody = "{\n" +
+	                "    \"author\": \"urn:li:person:" + profileURN + "\",\n" +
+	                "    \"lifecycleState\": \"PUBLISHED\",\n" +
+	                "    \"specificContent\": {\n" +
+	                "        \"com.linkedin.ugc.ShareContent\": {\n" +
+	                "            \"shareCommentary\": {\n" +
+	                "                \"text\": \"" + caption + "\"\n" +
+	                "            },\n" +
+	                "            \"shareMediaCategory\": \"" + shareMediaCategory + "\",\n" +
+	                "            \"media\": [\n" +
+	                "                {\n" +
+	                "                    \"status\": \"READY\",\n" +
+	                "                    \"description\": {\n" +
+	                "                        \"text\": \"Center stage!\"\n" +
+	                "                    },\n" +
+	                "                    \"media\": \"" + mediaAsset + "\",\n" +
+	                "                    \"title\": {\n" +
+	                "                        \"text\": \"LinkedIn Talent Connect 2021\"\n" +
+	                "                    }\n" +
+	                "                }\n" +
+	                "            ]\n" +
+	                "        }\n" +
+	                "    },\n" +
+	                "    \"visibility\": {\n" +
+	                "        \"com.linkedin.ugc.MemberNetworkVisibility\": \"PUBLIC\"\n" +
+	                "    }\n" +
+	                "}";
 
-			if (responseEntity.getStatusCode() == HttpStatus.CREATED) {
-				System.out.println("response : " + responseEntity.getBody()+" "+mediaType);
-				QuantumShareUser user = userDao.fetchUser(userId);
-				CreditSystem credits = user.getCreditSystem();
-				credits.setRemainingCredit(credits.getRemainingCredit() - 1);
-				user.setCreditSystem(credits);
-				userDao.save(user);
-				saveLinkedInPost(responseEntity.getBody().get("id").asText(), profileURN, user,
-						mediaType.equals("IMAGE") ? "image" : "video", profileName, accessToken, size);
+	        HttpEntity<String> requestEntity = config.getHttpEntity(requestBody, headers);
+	        ResponseEntity<JsonNode> responseEntity = restTemplate.exchange(
+	                "https://api.linkedin.com/v2/ugcPosts",
+	                HttpMethod.POST,
+	                requestEntity,
+	                JsonNode.class
+	        );
 
-				response.setStatus("Success");
-				response.setPlatform("linkedin");
-				response.setMessage("Posted To LinkedIn Profile");
-				response.setCode(HttpStatus.CREATED.value());
-				response.setData(responseEntity.getBody());
-			} else {
-				response.setData(null);
-				response.setPlatform("linkedin");
-				response.setStatus("Failure");
-				response.setMessage("Failed to create LinkedIn post: " + responseEntity.getStatusCode());
-				response.setCode(responseEntity.getStatusCode().value());
-			}
-		} catch (Exception e) {
-			throw new CommonException(e.getMessage());
-		}
-		return response;
+	        if (responseEntity.getStatusCode() == HttpStatus.CREATED) {
+	            JsonNode body = responseEntity.getBody();
+	            System.out.println("LinkedIn response body: " + body);
+
+	            String postId = (body != null && body.has("id")) ? body.get("id").asText() : null;
+
+	            response.setStatus("Success");
+	            response.setPlatform("linkedin");
+	            response.setMessage(postId != null ? "Posted To LinkedIn Profile" : "Posted, but no Post ID returned");
+	            response.setCode(HttpStatus.CREATED.value());
+	            response.setData(body);
+
+	            // Post-processing (like saving credits) -- separate try-catch
+	            try {
+	                if (postId != null) {
+	                    QuantumShareUser user = userDao.fetchUser(userId);
+	                    CreditSystem credits = user.getCreditSystem();
+	                    credits.setRemainingCredit(credits.getRemainingCredit() - 1);
+	                    user.setCreditSystem(credits);
+	                    userDao.save(user);
+
+	                    saveLinkedInPost(postId, profileURN, user,
+	                            mediaType.equals("image") ? "image" : "video", profileName, accessToken, size);
+	                }
+	            } catch (Exception innerEx) {
+	                innerEx.printStackTrace();
+	                System.out.println("Post-processing failed: " + innerEx.getMessage());
+	                // But don't affect the main success response
+	            }
+
+	        } else {
+	            response.setData(null);
+	            response.setPlatform("linkedin");
+	            response.setStatus("Failure");
+	            response.setMessage("Failed to create LinkedIn post: " + responseEntity.getStatusCode());
+	            response.setCode(responseEntity.getStatusCode().value());
+	        }
+
+	    } catch (Exception e) {
+	        e.printStackTrace();
+	        response.setStatus("Failure");
+	        response.setMessage("Exception while creating LinkedIn post: " +
+	                (e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName()));
+	        response.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+	        response.setPlatform("linkedin");
+	        response.setData(null);
+	    }
+
+	    System.out.println("createLinkedInPost response: " + response.getStatus() + " / " + response.getCode());
+
+	    return response;
 	}
+
+
 
 	public ResponseStructure<String> uploadImageToLinkedInPage(MultipartFile file, String caption,
 			LinkedInPageDto linkedInPageUser, int userId) {
@@ -332,54 +383,59 @@ public class LinkedInProfilePostService {
 	}
 
 	private void saveLinkedInPost(String postId, String pageURN, QuantumShareUser user, String type, String pageName,
-			String accessToken, long size) {
-		if (type.equals("video")) {
-			try {
-				if (size < 20 * 1024 * 1024) {
-					Thread.sleep(9000);
-				} else if (size > 20 * 1024 * 1024) {
-					Thread.sleep(15000);
-				}
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-		}
-		try {
-			HttpHeaders headers = new HttpHeaders();
-			headers.setBearerAuth(accessToken);
-			headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-			headers.set("LinkedIn-Version", "202411");
-			String url = "https://api.linkedin.com/rest/posts/";
-			HttpEntity<String> requestEntity = config.getHttpEntity(headers);
-			ResponseEntity<JsonNode> response = restTemplate.exchange(url + postId, HttpMethod.GET, requestEntity,
-					JsonNode.class);
-			JsonNode body = response.getBody();
-			String mediaId = null;
-			if (response.getStatusCode().is2xxSuccessful()) {
-				mediaId = body.path("content").path("media").path("id").asText();
-			}
-			String postUrl = null;
-			String apiUrl = "https://api.linkedin.com/rest/";
-			if (mediaId.startsWith("urn:li:image")) {
-				apiUrl = apiUrl + "images/" + mediaId;
+	        String accessToken, long size) {
+	    try {
+	        if ("video".equals(type)) {
+	            try {
+	                if (size < 20 * 1024 * 1024) {
+	                    Thread.sleep(9000);
+	                } else {
+	                    Thread.sleep(15000);
+	                }
+	            } catch (InterruptedException e) {
+	                System.err.println("Sleep interrupted: " + e.getMessage());
+	            }
+	        }
 
-			} else if (mediaId.startsWith("urn:li:video")) {
-				apiUrl = apiUrl + "videos/" + mediaId;
-			}
-			ResponseEntity<JsonNode> response1 = restTemplate.exchange(apiUrl, HttpMethod.GET, requestEntity,
-					JsonNode.class);
-			JsonNode body2 = response1.getBody();
-			if (response.getStatusCode().is2xxSuccessful()) {
-				postUrl = body2.get("downloadUrl").asText();
-			}
+	        HttpHeaders headers = new HttpHeaders();
+	        headers.setBearerAuth(accessToken);
+	        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+	        headers.set("LinkedIn-Version", "202411");
+	        String url = "https://api.linkedin.com/rest/posts/";
+	        HttpEntity<String> requestEntity = config.getHttpEntity(headers);
 
-			analyticsPostService.savePost(postId, pageURN, user, type, "linkedin", pageName, postUrl);
-		} catch (Exception e) {
-			e.printStackTrace();
-			throw new CommonException(e.getMessage());
-		}
+	        ResponseEntity<JsonNode> response = restTemplate.exchange(url + postId, HttpMethod.GET, requestEntity, JsonNode.class);
+	        JsonNode body = response.getBody();
+	        String mediaId = null;
+	        if (response.getStatusCode().is2xxSuccessful() && body != null) {
+	            mediaId = body.path("content").path("media").path("id").asText(null); // null-safe
+	        }
 
+	        String postUrl = null;
+	        if (mediaId != null) {
+	            String apiUrl = "https://api.linkedin.com/rest/";
+	            if (mediaId.startsWith("urn:li:image")) {
+	                apiUrl += "images/" + mediaId;
+	            } else if (mediaId.startsWith("urn:li:video")) {
+	                apiUrl += "videos/" + mediaId;
+	            }
+
+	            ResponseEntity<JsonNode> response1 = restTemplate.exchange(apiUrl, HttpMethod.GET, requestEntity, JsonNode.class);
+	            JsonNode body2 = response1.getBody();
+	            if (response1.getStatusCode().is2xxSuccessful() && body2 != null) {
+	                postUrl = body2.path("downloadUrl").asText(null); // null-safe
+	            }
+	        } else {
+	            System.err.println("mediaId was null for postId: " + postId);
+	        }
+
+	        analyticsPostService.savePost(postId, pageURN, user, type, "linkedin", pageName, postUrl);
+	    } catch (Exception e) {
+	        System.err.println("Error saving LinkedIn post details: " + e.getMessage());
+	        // do not throw further
+	    }
 	}
+
 
 	private String determineRecipeType(MultipartFile file) {
 		String contentType = file.getContentType();
