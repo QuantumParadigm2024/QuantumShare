@@ -46,6 +46,26 @@ public class AiController {
 		}
 	}
 
+	
+	@PostMapping("/aiChat")
+	public ResponseEntity<ResponseStructure<String>> generateChatConvo(
+			@RequestParam(value = "userMessage", required = false) String userMessage) {
+		if (userMessage == null || userMessage.isEmpty()) {
+			return ResponseEntity.badRequest().body(aiService.handleEmptyOrNullRequest());
+		}
+		try {
+			ResponseStructure<String> responseStructure = aiService.generateChatConvo(userMessage);
+			if (responseStructure == null) {
+				return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(aiService.handleExceededLimits());
+			}
+			return ResponseEntity.ok(responseStructure);
+		} catch (Exception e) {
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+					.body(aiService.handleEmptyGeneratedContent());
+		}
+	}
+	
+	
 	@PostMapping("/generate-image")
 	public ResponseEntity<Object> generateImage(@RequestParam(name = "textPromt") String textPrompt) {
 		try {
