@@ -504,9 +504,7 @@ public class TwitterService {
 				type = "image";
 			else if (type.equals("video"))
 				type = "video";
-			analyticsPostService.savePost(postId, twitteruser2.getTwitterUserId() + "", user, type, "twitter",
-					twitteruser2.getUserName(), mediaUrl);
-		} catch (Exception e) {
+			} catch (Exception e) {
 			e.printStackTrace();
 			return null;
 		}

@@ -26,7 +26,6 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.qp.quantum_share.dto.FacebookPageDetails;
 import com.qp.quantum_share.dto.PaymentDetails;
-import com.qp.quantum_share.dto.SocialMediaPosts;
 import com.qp.quantum_share.response.ErrorResponse;
 import com.qp.quantum_share.response.ResponseStructure;
 import com.qp.quantum_share.response.ResponseWrapper;
@@ -134,11 +133,11 @@ public class ConfigurationClass {
 		return new ArrayList<Object>();
 	}
 
-	@Bean
-	@Lazy
-	public List<SocialMediaPosts> getListOfPost() {
-		return new ArrayList<SocialMediaPosts>();
-	}
+//	@Bean
+//	@Lazy
+//	public List<SocialMediaPosts> getListOfPost() {
+//		return new ArrayList<SocialMediaPosts>();
+//	}
 
 	@Bean
 	@Lazy
@@ -195,11 +194,11 @@ public class ConfigurationClass {
 		return new HttpEntity<>(body, headers);
 	}
 
-	@Bean
-	@Lazy
-	public SocialMediaPosts getsocialMediaPosts() {
-		return new SocialMediaPosts();
-	}
+//	@Bean
+//	@Lazy
+//	public SocialMediaPosts getsocialMediaPosts() {
+//		return new SocialMediaPosts();
+//	}
 
 	@Bean
 	@Lazy

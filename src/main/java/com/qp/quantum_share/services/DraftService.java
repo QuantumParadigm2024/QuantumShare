@@ -42,6 +42,7 @@ public class DraftService {
 
     public ResponseEntity<ResponseStructure<String>> saveDraft(int userId, Drafts mediaPost, MultipartFile file) {
         try {
+            System.out.println("fil name : " + file.getOriginalFilename() + " " + file.getContentType());
             ResponseStructure<String> structure = new ResponseStructure<String>();
             QuantumShareUser user = userDao.fetchUser(userId);
             if (user == null) {
@@ -52,6 +53,7 @@ public class DraftService {
                 structure.setPlatform(null);
                 return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
             }
+            System.out.println("file ** " + file.isEmpty());
             if (file.isEmpty()) {
                 structure.setCode(HttpStatus.BAD_REQUEST.value());
                 structure.setMessage("File not supported or File doesn't exists");
@@ -73,6 +75,7 @@ public class DraftService {
             return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.OK);
 
         } catch (Exception e) {
+            e.printStackTrace();
             throw new CommonException(e.getMessage());
         }
     }
@@ -197,7 +200,7 @@ public class DraftService {
         MediaPost post = new MediaPost();
         post.setCaption(draft.getCaption());
         post.setTitle(draft.getTitle());
-        post.setVisibility(draft.getVisibility());
+        post.setVisibility("public");
         post.setBoardName(draft.getBoardName());
         post.setUserTimeZone(draft.getUserTimeZone());
         post.setMediaPlatform("youtube");
@@ -289,29 +292,30 @@ public class DraftService {
         }
     }
 
+    public ResponseEntity<?> modifyDraft(int userId, int draftId, Drafts drafts) {
+        Drafts oldDrft = draftRepository.findById(draftId).orElse(null);
+        ResponseStructure<String> structure = new ResponseStructure<>();
+        if (oldDrft == null) {
+            structure.setCode(HttpStatus.NOT_FOUND.value());
+            structure.setMessage("Draft not Exists");
+            structure.setStatus("error");
+            return new ResponseEntity<>(structure, HttpStatus.NOT_FOUND);
+        }
+        if (drafts.getCaption() != null) {
+            oldDrft.setCaption(drafts.getCaption());
+        }
+        if (drafts.getTitle() != null) {
+            oldDrft.setTitle(drafts.getTitle());
+        }
+        if (drafts.getBoardName() != null) {
+            oldDrft.setBoardName(drafts.getBoardName());
+        }
+        draftRepository.save(oldDrft);
+        structure.setStatus("success");
+        structure.setMessage("draft updated");
+        structure.setCode(HttpStatus.OK.value());
+        return new ResponseEntity<>(structure, HttpStatus.OK);
+    }
 
-//    private String getFileNameFromUrl(String url) {
-//        try {
-//            URL parsedUrl = new URL(url);
-//            String path = parsedUrl.getPath();
-//            return path.substring(path.lastIndexOf('/') + 1);
-//        } catch (Exception e) {
-//            return "file_" + System.currentTimeMillis();
-//        }
-//    }
-//
-//    // Helper method to determine content type
-//    private String getContentTypeFromUrl(String url) {
-//        // You can implement more sophisticated content type detection
-//        if (url.toLowerCase().endsWith(".jpg") || url.toLowerCase().endsWith(".jpeg")) {
-//            return "image/jpeg";
-//        } else if (url.toLowerCase().endsWith(".png")) {
-//            return "image/png";
-//        } else if (url.toLowerCase().endsWith(".mp4")) {
-//            return "video/mp4";
-//        } else if (url.toLowerCase().endsWith(".gif")) {
-//            return "image/gif";
-//        }
-//        return "application/octet-stream";
-//    }
+
 }

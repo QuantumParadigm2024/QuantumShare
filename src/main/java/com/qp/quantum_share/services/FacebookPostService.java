@@ -137,8 +137,6 @@ public class FacebookPostService {
                                 succesresponse.setPlatform("facebook");
                                 mainresponse.add(succesresponse);
                             } else {
-                                analyticsPostService.savePost(res.getBody().get("id").asText(), facebookPageId, qsuser,
-                                        mediaFile.getContentType(), "facebook", page.getPageName());
                                 QuantumShareUser qs = userDao.fetchUser(userId);
                                 CreditSystem credits = qs.getCreditSystem();
                                 credits.setRemainingCredit(credits.getRemainingCredit() - 1);
@@ -186,8 +184,6 @@ public class FacebookPostService {
                             credits.setRemainingCredit(credits.getRemainingCredit() - 1);
                             qs.setCreditSystem(credits);
                             userDao.save(qs);
-                            analyticsPostService.savePost(finalResponse.getId(), facebookPageId, qsuser,
-                                    mediaFile.getContentType(), "facebook", pageName);
                             responseHeaders.setContentType(MediaType.valueOf(mediaFile.getContentType()));
                             SuccessResponse succesresponse = config.getSuccessResponse();
                             succesresponse.setCode(HttpStatus.OK.value());
@@ -253,8 +249,6 @@ public class FacebookPostService {
                                 succesresponse.setPlatform("facebook");
                                 mainresponse.add(succesresponse);
                             } else {
-                                analyticsPostService.savePost(photoresponse.get("id").asText(),
-                                        facebookPageId, qsuser, mediaFile.getContentType(), "facebook", pagename);
                                 SuccessResponse succesresponse = config.getSuccessResponse();
                                 QuantumShareUser qs = userDao.fetchUser(userId);
                                 CreditSystem credits = qs.getCreditSystem();

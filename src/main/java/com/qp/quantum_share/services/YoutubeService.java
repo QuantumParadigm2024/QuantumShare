@@ -415,8 +415,6 @@ public class YoutubeService {
 			ObjectMapper objectMapper = new ObjectMapper();
 			JsonNode responseBody = objectMapper.readTree(response.getBody());
 			String postid = responseBody.get("id").asText();
-			analyticsPostService.savePost(postid, youtubeChannelId, qsuser, mediaFile.getContentType(), "youtube",
-					channelName);
 			userDao.save(qsuser);
 
 			successResponse.setMessage("Posted On Youtube");

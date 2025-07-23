@@ -429,7 +429,6 @@ public class LinkedInProfilePostService {
 	            System.err.println("mediaId was null for postId: " + postId);
 	        }
 
-	        analyticsPostService.savePost(postId, pageURN, user, type, "linkedin", pageName, postUrl);
 	    } catch (Exception e) {
 	        System.err.println("Error saving LinkedIn post details: " + e.getMessage());
 	        // do not throw further

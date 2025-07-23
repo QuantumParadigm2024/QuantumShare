@@ -23,7 +23,6 @@ import com.qp.quantum_share.dao.InstagramUserDao;
 import com.qp.quantum_share.dao.LinkedInPageDao;
 import com.qp.quantum_share.dao.LinkedInProfileDao;
 import com.qp.quantum_share.dao.PinterestUserDao;
-import com.qp.quantum_share.dao.PostsDao;
 import com.qp.quantum_share.dao.QuantumShareUserDao;
 import com.qp.quantum_share.dao.RedditDao;
 import com.qp.quantum_share.dao.SocialAccountDao;
@@ -78,9 +77,6 @@ public class SocialMediaLogoutService {
     TwitterDao twitterDao;
 
     @Autowired
-    PostsDao postsDao;
-
-    @Autowired
     AnalyticsPostService analyticsPostService;
 
     @Autowired
@@ -131,7 +127,6 @@ public class SocialMediaLogoutService {
         facebookUserDao.deleteFbUser(deleteUser);
         pageDao.deletePage(pages);
 
-        analyticsPostService.deletePosts(user, "facebook");
 
 //        redisService.delete("connected:facebook:user:" + user.getUserId());
 
@@ -163,7 +158,6 @@ public class SocialMediaLogoutService {
         userDao.save(user);
 
         instagramUserDao.deleteUser(deleteUser);
-        analyticsPostService.deletePosts(user, "instagram");
         structure.setCode(HttpStatus.OK.value());
         structure.setMessage("Instagram Disconnected Successfully");
         structure.setPlatform("instagram");
@@ -241,7 +235,6 @@ public class SocialMediaLogoutService {
             userDao.save(user);
 
             linkedInPageDao.deletePage(pages);
-            analyticsPostService.deletePosts(user, "linkedin");
             ResponseStructure<String> response = new ResponseStructure<>();
             response.setCode(HttpStatus.OK.value());
             response.setMessage("LinkedIn Page Disconnected Successfully");
@@ -272,7 +265,6 @@ public class SocialMediaLogoutService {
         userDao.save(user);
 
         youtubeUserDao.deleteUser(deleteUser);
-        analyticsPostService.deletePosts(user, "youtube");
         structure.setCode(HttpStatus.OK.value());
         structure.setMessage("Youtube Disconnected Successfully");
         structure.setPlatform("youtube");
@@ -300,7 +292,6 @@ public class SocialMediaLogoutService {
         user.setSocialAccounts(accounts);
         userDao.save(user);
         redditDao.deleteUser(deleteUser);
-        analyticsPostService.deletePosts(user, "reddit");
         responseStructure.setCode(HttpStatus.OK.value());
         responseStructure.setMessage("Reddit account disconnected successfully");
         responseStructure.setPlatform("Reddit");
@@ -348,7 +339,6 @@ public class SocialMediaLogoutService {
             user.setSocialAccounts(accounts);
             userDao.save(user);
             twitterDao.deleteUser(deleteUser);
-            analyticsPostService.deletePosts(user, "twitter");
 
             responseStructure.setCode(HttpStatus.OK.value());
             responseStructure.setMessage("Twitter account disconnected successfully");
@@ -386,7 +376,6 @@ public class SocialMediaLogoutService {
         userDao.save(user);
 
         pinterestUserDao.deleteUser(deleteUser);
-        analyticsPostService.deletePosts(user, "pinterest");
         structure.setCode(HttpStatus.OK.value());
         structure.setMessage("Pinterest Disconnected Successfully");
         structure.setPlatform("pinterest");
