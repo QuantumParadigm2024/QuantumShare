@@ -546,14 +546,6 @@ public class RedditService {
 		                    postId = matcher.group(1);
 		                }
 		            }
-
-		            if (postId != null) {
-		            	analyticsPostService.savePost(postId, " ", user, "image", "reddit",redditUser.getRedditUsername(), redditUrl);
-		                responseStructure.setMessage("Post submitted successfully with ID: " + postId);
-		            } else {
-		                responseStructure.setMessage("Post submitted successfully, but ID could not be extracted.");
-		            }
-
 		            responseStructure.setStatus("success");
 		            responseStructure.setPlatform("reddit");
 		            responseStructure.setCode(HttpStatus.OK.value());

@@ -373,8 +373,7 @@ public class LinkedInProfilePostService {
 				postUrl = body2.get("downloadUrl").asText();
 			}
 
-			analyticsPostService.savePost(postId, pageURN, user, type, "linkedin", pageName, postUrl);
-		} catch (Exception e) {
+			} catch (Exception e) {
 			e.printStackTrace();
 			throw new CommonException(e.getMessage());
 		}

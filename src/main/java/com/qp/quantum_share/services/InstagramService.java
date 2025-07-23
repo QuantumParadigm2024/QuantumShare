@@ -163,8 +163,7 @@ public class InstagramService {
                     credits.setRemainingCredit(credits.getRemainingCredit() - 1);
                     user.setCreditSystem(credits);
                     userDao.save(user);
-                    analyticsPostService.savePost(response.getId(), instagramUserId, user, "video", "instagram",
-                            profileName);
+
                     SuccessResponse successResponse = new SuccessResponse();
                     successResponse.setCode(HttpStatus.OK.value());
                     successResponse.setMessage("Posted On Instagram");
@@ -235,8 +234,6 @@ public class InstagramService {
                 credits.setRemainingCredit(credits.getRemainingCredit() - 1);
                 user.setCreditSystem(credits);
                 userDao.save(user);
-                analyticsPostService.savePost(response.getId(), instagramUserId, user, "image", "instagram",
-                        profileName);
                 SuccessResponse successResponse = new SuccessResponse();
                 successResponse.setCode(HttpStatus.OK.value());
                 successResponse.setMessage("Posted On Instagram");
