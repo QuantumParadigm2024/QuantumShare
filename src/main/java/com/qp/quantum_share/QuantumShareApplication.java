@@ -9,3 +9,4 @@ public class QuantumShareApplication {
 		SpringApplication.run(QuantumShareApplication.class, args);
 	}
 }
+ 
