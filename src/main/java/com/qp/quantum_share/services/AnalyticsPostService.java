@@ -2,6 +2,8 @@ package com.qp.quantum_share.services;
 
 import java.util.*;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.qp.quantum_share.dto.*;
 import com.qp.quantum_share.exception.CommonException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,41 +20,66 @@ public class AnalyticsPostService {
     SocialMediaPosts socialMediaPosts;
 
     public ResponseEntity<ResponseStructure<String>> viewAnalytics(QuantumShareUser user, String platformName) {
-        SocialAccounts socialAccounts = user.getSocialAccounts();
-        ResponseStructure<String> structure = new ResponseStructure<String>();
-        if (socialAccounts == null) {
-            structure.setStatus("error");
-            structure.setMessage("No have not connected");
-            structure.setCode(HttpStatus.NOT_FOUND.value());
-            return new ResponseEntity<>(structure, HttpStatus.NOT_FOUND);
-        }
-        if (platformName.equals("facebook")) {
-            if (socialAccounts.getFacebookUser() == null) {
+        try {
+            SocialAccounts socialAccounts = user.getSocialAccounts();
+            ResponseStructure<String> structure = new ResponseStructure<String>();
+            if (socialAccounts == null) {
                 structure.setStatus("error");
-                structure.setMessage("Facebook accounts have not connected");
+                structure.setMessage("No have not connected");
                 structure.setCode(HttpStatus.NOT_FOUND.value());
                 return new ResponseEntity<>(structure, HttpStatus.NOT_FOUND);
             }
-            List<FacebookPageDetails> pages = socialAccounts.getFacebookUser().getPageDetails();
-            List<Map<String, Object>> list = new ArrayList<>();
-            for (FacebookPageDetails page : pages) {
+            if (platformName.equals("facebook")) {
+                if (socialAccounts.getFacebookUser() == null) {
+                    structure.setStatus("error");
+                    structure.setMessage("Facebook accounts have not connected");
+                    structure.setCode(HttpStatus.NOT_FOUND.value());
+                    return new ResponseEntity<>(structure, HttpStatus.NOT_FOUND);
+                }
+                List<FacebookPageDetails> pages = socialAccounts.getFacebookUser().getPageDetails();
+                List<Map<String, Object>> list = new ArrayList<>();
+                for (FacebookPageDetails page : pages) {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("pageId", page.getPageTableId());
+                    map.put("pageName", page.getPageName());
+                    List<Object> posts = socialMediaPosts.getFacebookAllPosts(15, page.getFbPageId(), page.getFbPageAceessToken());
+                    map.put("posts", posts);
+                    list.add(map);
+                }
+                structure.setCode(HttpStatus.OK.value());
+                structure.setStatus("success");
+                structure.setMessage("facebook posts");
+                structure.setPlatform("facebook");
+                structure.setData(list);
+                return new ResponseEntity<>(structure, HttpStatus.OK);
+            } else if (platformName.equals("instagram")) {
+                InstagramUser instagramUser = user.getSocialAccounts().getInstagramUser();
+                if (instagramUser == null) {
+                    structure.setStatus("error");
+                    structure.setMessage("Instagram accounts have not connected");
+                    structure.setCode(HttpStatus.NOT_FOUND.value());
+                    return new ResponseEntity<>(structure, HttpStatus.NOT_FOUND);
+                }
+                Object response = socialMediaPosts.getAllInstagramPosts(instagramUser.getInstaUserId(), instagramUser.getInstUserAccessToken());
                 Map<String, Object> map = new HashMap<>();
-                map.put("pageId", page.getPageTableId());
-                map.put("pageName", page.getPageName());
-                List<Object> posts = socialMediaPosts.getFacebookAllPosts(15, page.getFbPageId(), page.getFbPageAceessToken());
-                map.put("posts", posts);
-                list.add(map);
+                map.put("pageId", instagramUser.getInstaId());
+                map.put("pageName", instagramUser.getInstaUsername());
+                map.put("posts", response);
+                structure.setCode(HttpStatus.OK.value());
+                structure.setStatus("success");
+                structure.setMessage("Instagram posts");
+                structure.setData(map);
+                structure.setPlatform("instagram");
+                return new ResponseEntity<>(structure, HttpStatus.OK);
+            } else {
+                structure.setStatus("error");
+                structure.setMessage("Platform name not defined");
+                structure.setCode(HttpStatus.NOT_FOUND.value());
+                return new ResponseEntity<>(structure, HttpStatus.NOT_FOUND);
             }
-            structure.setCode(HttpStatus.OK.value());
-            structure.setStatus("success");
-            structure.setMessage("facebook posts");
-            structure.setData(list);
-            return new ResponseEntity<>(structure, HttpStatus.OK);
-        } else {
-            structure.setStatus("error");
-            structure.setMessage("Platform name not defined");
-            structure.setCode(HttpStatus.NOT_FOUND.value());
-            return new ResponseEntity<>(structure, HttpStatus.NOT_FOUND);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new CommonException(e.getMessage());
         }
     }
 
@@ -69,22 +96,28 @@ public class AnalyticsPostService {
                 int pageId = Integer.parseInt(pageid);
                 List<FacebookPageDetails> pages = user.getSocialAccounts().getFacebookUser().getPageDetails();
                 FacebookPageDetails matchedPage = pages.stream()
-                        .filter(p -> p.getPageTableId() == pageId) // Assuming `getPageId()` is the getter
+                        .filter(p -> p.getPageTableId() == pageId)
                         .findFirst()
                         .orElse(null);
-                System.out.println("matched =" + matchedPage);
                 if (matchedPage != null) {
                     if (type == null) {
                         type = "photo";
                     }
                     Map<String, Object> analytics = socialMediaPosts.getFacebookAnalytics(postId, type, matchedPage.getFbPageAceessToken());
-                    System.out.println("analytics = " + analytics);
                     structure.setCode(HttpStatus.OK.value());
                     structure.setStatus("success");
                     structure.setData(analytics);
                     return new ResponseEntity<>(structure, HttpStatus.OK);
                 }
                 return null;
+            }
+            if (platformName.equals("instagram")) {
+                String accessToken = user.getSocialAccounts().getInstagramUser().getInstUserAccessToken();
+                Map<String, Object> map = socialMediaPosts.getInstagramAnalytics(postId, type, accessToken);
+                structure.setCode(HttpStatus.OK.value());
+                structure.setStatus("success");
+                structure.setData(map);
+                return new ResponseEntity<>(structure, HttpStatus.OK);
             } else {
                 structure.setCode(HttpStatus.BAD_REQUEST.value());
                 structure.setMessage("platform not specified");

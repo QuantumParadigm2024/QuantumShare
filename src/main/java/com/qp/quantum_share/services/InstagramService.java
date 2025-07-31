@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -86,6 +87,9 @@ public class InstagramService {
     @Autowired
     PostOnServer postOnServer;
 
+    @Autowired
+    private RedisTemplate<String, Object> redisTemplate;
+
     public ResponseEntity<ResponseWrapper> postMediaToPage(MediaPost mediaPost, MultipartFile[] file,
                                                            InstagramUser instagramUser, int userId, String fileUrl) {
         String accessToken = instagramUser.getInstUserAccessToken();
@@ -158,6 +162,8 @@ public class InstagramService {
                 GraphResponse response = client.publish(instagramUserId + "/media_publish", GraphResponse.class,
                         Parameter.with("creation_id", containerId));
                 if (response.isSuccess()) {
+                    String cacheKey = "instaPosts:" + instagramUserId;
+                    redisTemplate.delete(cacheKey);
                     QuantumShareUser user = userDao.fetchUser(userId);
                     CreditSystem credits = user.getCreditSystem();
                     credits.setRemainingCredit(credits.getRemainingCredit() - 1);
@@ -229,6 +235,8 @@ public class InstagramService {
             GraphResponse response = client.publish(instagramUserId + "/media_publish", GraphResponse.class,
                     Parameter.with("creation_id", containerId));
             if (response.isSuccess()) {
+                String cacheKey = "instaPosts:" + instagramUserId;
+                redisTemplate.delete(cacheKey);
                 QuantumShareUser user = userDao.fetchUser(userId);
                 CreditSystem credits = user.getCreditSystem();
                 credits.setRemainingCredit(credits.getRemainingCredit() - 1);

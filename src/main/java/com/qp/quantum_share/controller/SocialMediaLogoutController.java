@@ -26,9 +26,6 @@ public class SocialMediaLogoutController {
 	@Autowired
 	JwtUtilConfig jwtUtilConfig;
 
-//	@Autowired
-//	ResponseStructure<String> structure;
-
 	@Autowired
 	QuantumShareUserDao userDao;
 
@@ -36,7 +33,8 @@ public class SocialMediaLogoutController {
 	SocialMediaLogoutService logoutService;
 
 	@Autowired
-	CommonMethod commonMethod;	
+	CommonMethod commonMethod;
+
 
 	@GetMapping("/disconnect/facebook")
 	public ResponseEntity<ResponseStructure<String>> disconnectFacebook() {
