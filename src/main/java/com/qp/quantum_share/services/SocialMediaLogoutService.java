@@ -2,9 +2,11 @@ package com.qp.quantum_share.services;
 
 import java.util.List;
 
+import com.qp.quantum_share.exception.CommonException;
 import org.hibernate.Hibernate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -101,43 +103,49 @@ public class SocialMediaLogoutService {
     RestTemplate restTemplate;
 
     @Autowired
-    RedisService redisService;
+    private RedisTemplate<String, Object> redisTemplate;
 
     public ResponseEntity<ResponseStructure<String>> disconnectFacebook(QuantumShareUser user) {
-        SocialAccounts accounts = user.getSocialAccounts();
-        System.out.println("disconnect");
-        if (accounts == null || accounts.getFacebookUser() == null) {
-            ResponseStructure<String> structure = new ResponseStructure<String>();
-            structure.setCode(404); // Or a custom code for Facebook not linked
-            structure.setMessage("Facebook account not linked to this user");
-            structure.setStatus("error");
-            structure.setData(null);
-            structure.setPlatform("facebook");
-            return new ResponseEntity<>(structure, HttpStatus.NOT_FOUND);
-        }
+       try {
+           SocialAccounts accounts = user.getSocialAccounts();
+           System.out.println("disconnect");
+           if (accounts == null || accounts.getFacebookUser() == null) {
+               ResponseStructure<String> structure = new ResponseStructure<String>();
+               structure.setCode(404); // Or a custom code for Facebook not linked
+               structure.setMessage("Facebook account not linked to this user");
+               structure.setStatus("error");
+               structure.setData(null);
+               structure.setPlatform("facebook");
+               return new ResponseEntity<>(structure, HttpStatus.NOT_FOUND);
+           }
 
-        FaceBookUser deleteUser = accounts.getFacebookUser();
+           FaceBookUser deleteUser = accounts.getFacebookUser();
 
-        Hibernate.initialize(deleteUser.getPageDetails());
-        List<FacebookPageDetails> pages = deleteUser.getPageDetails();
-        accounts.getFacebookUser().setPageDetails(null);
-        accounts.setFacebookUser(null);
-        user.setSocialAccounts(accounts);
-        userDao.save(user);
-        facebookUserDao.deleteFbUser(deleteUser);
-        pageDao.deletePage(pages);
-
-
-//        redisService.delete("connected:facebook:user:" + user.getUserId());
-
-        ResponseStructure<String> structure = new ResponseStructure<String>();
-        structure.setCode(HttpStatus.OK.value());
-        structure.setMessage("Facebook Disconnected Successfully");
-        structure.setPlatform("facebook");
-        structure.setStatus("success");
-        structure.setData(null);
-        return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.OK);
-
+           Hibernate.initialize(deleteUser.getPageDetails());
+           List<FacebookPageDetails> pages = deleteUser.getPageDetails();
+           for (FacebookPageDetails page : pages) {
+               String cacheKey = "fbPosts:" + page.getFbPageId();
+               redisTemplate.delete(cacheKey);
+               String cacheKey1 = "connected:facebook:user:" + user.getUserId();
+               redisTemplate.delete(cacheKey1);
+           }
+           accounts.getFacebookUser().setPageDetails(null);
+           accounts.setFacebookUser(null);
+           user.setSocialAccounts(accounts);
+           userDao.save(user);
+           facebookUserDao.deleteFbUser(deleteUser);
+           pageDao.deletePage(pages);
+           ResponseStructure<String> structure = new ResponseStructure<String>();
+           structure.setCode(HttpStatus.OK.value());
+           structure.setMessage("Facebook Disconnected Successfully");
+           structure.setPlatform("facebook");
+           structure.setStatus("success");
+           structure.setData(null);
+           return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.OK);
+       } catch (Exception e) {
+           e.printStackTrace();
+           throw new CommonException(e.getMessage());
+       }
     }
 
     public ResponseEntity<ResponseStructure<String>> disconnectInstagram(QuantumShareUser user) {
@@ -153,6 +161,10 @@ public class SocialMediaLogoutService {
             return new ResponseEntity<>(structure, HttpStatus.NOT_FOUND);
         }
         InstagramUser deleteUser = accounts.getInstagramUser();
+        String cacheKey = "instaPosts:" + deleteUser.getInstaUserId();
+        redisTemplate.delete(cacheKey);
+        String cacheKey1 = "connected:instagram:user:" + user.getUserId();
+        restTemplate.delete(cacheKey1);
         accounts.setInstagramUser(null);
         user.setSocialAccounts(accounts);
         userDao.save(user);

@@ -8,6 +8,7 @@ import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -66,8 +67,8 @@ public class FacebookPostService {
     @Autowired
     HttpHeaders headers;
 
-//	@Autowired
-//	;
+    @Autowired
+    private RedisTemplate<String, Object> redisTemplate;
 
     @Autowired
     HttpEntity<MultiValueMap<String, Object>> httpEntity;
@@ -128,6 +129,8 @@ public class FacebookPostService {
                         ResponseEntity<JsonNode> res = postVideo(facebookPageId, pageAccessToken, mediaFile,
                                 mediaPost.getCaption(), mediaPost, schedule);
                         if (res.getStatusCode().is2xxSuccessful()) {
+                            String cacheKey = "fbPosts:" + facebookPageId;
+                            redisTemplate.delete(cacheKey);
                             if (schedule) {
                                 SuccessResponse succesresponse = config.getSuccessResponse();
                                 succesresponse.setCode(HttpStatus.OK.value());
@@ -179,6 +182,8 @@ public class FacebookPostService {
                                 mediaPost.getCaption());
                         String pageName = page.getPageName();
                         if (finalResponse.isSuccess()) {
+                            String cacheKey = "fbPosts:" + facebookPageId;
+                            redisTemplate.delete(cacheKey);
                             QuantumShareUser qs = userDao.fetchUser(userId);
                             CreditSystem credits = qs.getCreditSystem();
                             credits.setRemainingCredit(credits.getRemainingCredit() - 1);
@@ -239,6 +244,8 @@ public class FacebookPostService {
                     JsonNode photoresponse = mapper.readTree(photores.getBody());
                     String pagename = page.getPageName();
                     if (photores.getStatusCode().is2xxSuccessful()) {
+                        String cacheKey = "fbPosts:" + facebookPageId;
+                        redisTemplate.delete(cacheKey);
                         if (photoresponse.get("id") != null) {
                             if (schedule) {
                                 SuccessResponse succesresponse = config.getSuccessResponse();

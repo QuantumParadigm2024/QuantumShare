@@ -176,13 +176,13 @@ public class QuantumShareUserController {
     }
 
     @GetMapping("/connected/socialmedia/facebook")
-    public ResponseEntity<ResponseStructure<String>> fetchConnectedFB() {
+    public ResponseEntity<?> fetchConnectedFB() {
         Object userId = commonMethod.validateToken(request.getHeader("Authorization"));
         return quantumShareUserService.fetchConnectedFb(Integer.parseInt(userId.toString()));
     }
 
     @GetMapping("/connected/socialmedia/instagram")
-    public ResponseEntity<ResponseStructure<String>> fetchConnectedinsta() {
+    public ResponseEntity<?> fetchConnectedinsta() {
         Object userId = commonMethod.validateToken(request.getHeader("Authorization"));
         return quantumShareUserService.fetchConnectedInsta1(Integer.parseInt(userId.toString()));
     }

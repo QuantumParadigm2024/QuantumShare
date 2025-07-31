@@ -50,6 +50,9 @@ public class LinkedInProfileService {
 	@Value("${linkedin.scope}")
 	private String scope;
 
+	@Value("${linkedin.app.redirectUri}")
+	private String appRedirectUri;
+
 	@Autowired
 	LinkedInProfileDto linkedInProfileDto;
 
@@ -467,7 +470,15 @@ public class LinkedInProfileService {
                 "&scope=" + scope;
     }
 
+	// For Mobile APP
+	public ResponseEntity<Map<String, String>> getLinkedInAuthForApp() {
+		Map<String, String> authUrlParams = new HashMap<>();
+		authUrlParams.put("clientId", clientId);
+		authUrlParams.put("redirectUri", appRedirectUri); // mobile app redirect URI
+		authUrlParams.put("scope", scope);
+		return ResponseEntity.ok(authUrlParams);
 	}
+}
 
 
 

@@ -306,9 +306,11 @@ public class SocialMediaLoginController {
                              .header("Location", authorizationUrl)
                              .build();
     }
-	
+
 	@GetMapping("/linkedin/user/connect")
-	public ResponseEntity<Map<String, String>> getLinkedInAuthUrl() {
+	public ResponseEntity<Map<String, String>> getLinkedInAuthUrl(
+			@RequestParam(value = "source", defaultValue = "web") String source) {
+
 		Map<String, String> authUrlParams = new HashMap<>();
 		Object userId1 = commonMethod.validateToken(request.getHeader("Authorization"));
 		int userId = Integer.parseInt(userId1.toString());
@@ -323,11 +325,20 @@ public class SocialMediaLoginController {
 			return ResponseEntity.status(HttpStatus.NOT_FOUND).body(authUrlParams);
 		}
 
-		Map<String, String> authUrlParamsBody = linkedInProfileService.getLinkedInAuth().getBody();
+		Map<String, String> authUrlParamsBody;
+
+		// choose web or app auth URL generator
+		if ("app".equalsIgnoreCase(source)) {
+			authUrlParamsBody = linkedInProfileService.getLinkedInAuthForApp().getBody();
+		} else {
+			authUrlParamsBody = linkedInProfileService.getLinkedInAuth().getBody();
+		}
+
 		if (authUrlParamsBody != null) {
 			authUrlParams.putAll(authUrlParamsBody);
 		}
 		authUrlParams.put("status", "success");
+
 		return ResponseEntity.ok(authUrlParams);
 	}
 
