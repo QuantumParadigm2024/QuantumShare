@@ -79,6 +79,37 @@ public class RedditService {
 				+ "&response_type=code&state="+ UUID.randomUUID() +"&redirect_uri=" + redirectUri + "&duration=permanent&scope=" + scope;
 	}
 
+
+	// FOR WEB APP
+	public ResponseEntity<Map<String, String>> getRedditAuthForWeb(int userId) {
+		Map<String, String> authUrlParams = new HashMap<>();
+		String state = "web";
+
+		authUrlParams.put("client_id", clientId);
+		authUrlParams.put("response_type", "code");
+		authUrlParams.put("state", state);
+		authUrlParams.put("redirect_uri", redirectUri);
+		authUrlParams.put("duration", "permanent");
+		authUrlParams.put("scope", scope);
+
+		return ResponseEntity.ok(authUrlParams);
+	}
+
+	// FOR MOBILE APP
+	public ResponseEntity<Map<String, String>> getRedditAuthForApp(int userId) {
+		Map<String, String> authUrlParams = new HashMap<>();
+		String state = "app";
+
+		authUrlParams.put("client_id", clientId);
+		authUrlParams.put("response_type", "code");
+		authUrlParams.put("state", state);
+		authUrlParams.put("redirect_uri", redirectUri);
+		authUrlParams.put("duration", "permanent");
+		authUrlParams.put("scope", scope);
+
+		return ResponseEntity.ok(authUrlParams);
+	}
+
 	// REDDIT FETCHING ACCESSTOKEN
 	public ResponseStructure<Map<String, String>> getAccessToken(String code, QuantumShareUser user) {
 		String url = "https://www.reddit.com/api/v1/access_token";

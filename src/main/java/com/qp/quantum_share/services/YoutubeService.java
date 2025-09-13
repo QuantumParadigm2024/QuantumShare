@@ -111,13 +111,8 @@ public class YoutubeService {
         // Choose redirect URI based on source
         String selectedRedirectUri = "app".equalsIgnoreCase(source) ? youtubeAppRedirectUri : redirectUri;
 
-        String oauthUrl = authUri
-                + "?response_type=code"
-                + "&client_id=" + clientId
-                + "&redirect_uri=" + selectedRedirectUri
-                + "&scope=" + scope
-                + "&access_type=offline"
-                + "&prompt=consent";
+        String oauthUrl = authUri + "?response_type=code" + "&client_id=" + clientId + "&redirect_uri="
+                + selectedRedirectUri + "&scope=" + scope + "&access_type=offline" + "&prompt=consent";
 
         ResponseStructure<String> structure = new ResponseStructure<>();
         structure.setCode(HttpStatus.OK.value());
@@ -129,16 +124,21 @@ public class YoutubeService {
         return new ResponseEntity<>(structure, HttpStatus.OK);
     }
 
-    public ResponseEntity<ResponseStructure<String>> verifyToken(String code, QuantumShareUser user, int userId) {
+    public ResponseEntity<ResponseStructure<String>> verifyToken(String code, QuantumShareUser user, int userId,
+                                                                 String source) {
         try {
+            HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-            multiValueMap.add("code", code);
-            multiValueMap.add("client_id", clientId);
-            multiValueMap.add("client_secret", clientSecret);
-            multiValueMap.add("redirect_uri", redirectUri);
-            multiValueMap.add("grant_type", "authorization_code");
 
-            HttpEntity<MultiValueMap<String, Object>> httpRequest = config.getHttpEntityWithMap(multiValueMap, headers);
+            MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+            body.add("code", code);
+            body.add("client_id", clientId);
+            body.add("client_secret", clientSecret);
+            String selectedRedirectUri = "app".equalsIgnoreCase(source) ? youtubeAppRedirectUri : redirectUri;
+            body.add("redirect_uri", selectedRedirectUri);
+            body.add("grant_type", "authorization_code");
+            System.out.println("Body   " + body);
+            HttpEntity<MultiValueMap<String, Object>> httpRequest = config.getHttpEntityWithMap(body, headers);
             ResponseEntity<String> response = restTemplate.exchange(tokenUri, HttpMethod.POST, httpRequest,
                     String.class);
             if (response.getStatusCode() == HttpStatus.OK) {
@@ -158,6 +158,7 @@ public class YoutubeService {
                     }
                     return saveYoutubeUser(youtubeUserDetails, user, accessToken, refreshToken, userId);
                 } else {
+                    System.out.println(" else block ");
                     throw new CommonException("Access token not found in response");
                 }
             } else {
@@ -171,6 +172,7 @@ public class YoutubeService {
         } catch (JsonProcessingException e) {
             throw new CommonException(e.getMessage());
         } catch (Exception e) {
+            e.printStackTrace();
             throw new CommonException(e.getMessage());
         }
     }
