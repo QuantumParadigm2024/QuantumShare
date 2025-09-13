@@ -197,8 +197,6 @@ public class LinkedInProfileService {
             JsonNode response = responseEntity.getBody();
             return response.get("access_token").asText();
         } catch (Exception e) {
-            System.out.println("accesstoken exception");
-            e.printStackTrace();
             throw new CommonException(e.getMessage());
         }
     }

@@ -1,5 +1,8 @@
 package com.qp.quantum_share.controller;
 
+import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -7,6 +10,7 @@ import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -443,14 +447,12 @@ public class SocialMediaLoginController {
             structure.setData(null);
             return new ResponseEntity<>(structure, HttpStatus.NOT_FOUND);
         }
-
-        // Pass the source value to the service method
         return youtubeService.getAuthorizationUrl(user, source);
     }
 
     // Youtube
     @PostMapping("/youtube/user/verify-token")
-    public ResponseEntity<ResponseStructure<String>> callbackYoutube(@RequestParam(required = false) String code) {
+    public ResponseEntity<ResponseStructure<String>> callbackYoutube(@RequestParam(required = false) String code, @RequestParam(value = "source", defaultValue = "web") String source) {
         Object userId1 = commonMethod.validateToken(request.getHeader("Authorization"));
         int userId = Integer.parseInt(userId1.toString());
         QuantumShareUser user = userDao.fetchUser(userId);
@@ -471,7 +473,7 @@ public class SocialMediaLoginController {
             structure.setData(null);
             return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.BAD_REQUEST);
         }
-        return youtubeService.verifyToken(code, user, userId);
+        return youtubeService.verifyToken(code, user, userId, source);
     }
 
     @GetMapping("/connect-reddit")
@@ -480,27 +482,104 @@ public class SocialMediaLoginController {
         return new RedirectView(authorizationUrl);
     }
 
+//    @GetMapping("/connect/reddit")
+//    public ResponseEntity<Map<String, String>> getRedditAuthUrl(HttpServletRequest request) {
+//        Map<String, String> authUrlParams = new HashMap<>();
+//        Object userId1 = commonMethod.validateToken(request.getHeader("Authorization"));
+//        int userId = Integer.parseInt(userId1.toString());
+//        QuantumShareUser user = userDao.fetchUser(userId);
+//
+//        if (user == null) {
+//            authUrlParams.put("status", "error");
+//            authUrlParams.put("code", String.valueOf(HttpStatus.NOT_FOUND.value()));
+//            authUrlParams.put("message", "User doesn't exist, please sign up");
+//            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(authUrlParams);
+//        }
+//        authUrlParams.put("client_id", reddit_clientId);
+//        authUrlParams.put("redirect_uri", reddit_redirect_uri);
+//        authUrlParams.put("scope", reddit_scope);
+//        authUrlParams.put("status", "success");
+//        System.out.println(authUrlParams);
+//        return ResponseEntity.ok(authUrlParams);
+//    }
+
     @GetMapping("/connect/reddit")
-    public ResponseEntity<Map<String, String>> getRedditAuthUrl(HttpServletRequest request) {
-        Map<String, String> authUrlParams = new HashMap<>();
+    public ResponseEntity<Map<String, String>> getRedditAuthUrl(
+            HttpServletRequest request,
+            @RequestParam(value = "source", defaultValue = "web") String source) {
+
+        Map<String, String> response = new HashMap<>();
         Object userId1 = commonMethod.validateToken(request.getHeader("Authorization"));
         int userId = Integer.parseInt(userId1.toString());
         QuantumShareUser user = userDao.fetchUser(userId);
 
         if (user == null) {
-            authUrlParams.put("status", "error");
-            authUrlParams.put("code", String.valueOf(HttpStatus.NOT_FOUND.value()));
-            authUrlParams.put("message", "User doesn't exist, please sign up");
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(authUrlParams);
+            response.put("status", "error");
+            response.put("code", String.valueOf(HttpStatus.NOT_FOUND.value()));
+            response.put("message", "User doesn't exist, please sign up");
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
         }
-        authUrlParams.put("client_id", reddit_clientId);
-        authUrlParams.put("redirect_uri", reddit_redirect_uri);
-        authUrlParams.put("scope", reddit_scope);
-        authUrlParams.put("status", "success");
+
+        ResponseEntity<Map<String, String>> authUrlParams;
+        if ("app".equalsIgnoreCase(source)) {
+            authUrlParams = redditService.getRedditAuthForApp(userId);
+        } else {
+            authUrlParams = redditService.getRedditAuthForWeb(userId);
+        }
+
+        Map<String, String> body = authUrlParams.getBody();
+        if (body != null) {
+            body.put("status", "success");
+        }
         System.out.println(authUrlParams);
-        return ResponseEntity.ok(authUrlParams);
+        return authUrlParams;
     }
 
+    @GetMapping("/callback/reddit")
+    public ResponseEntity<?> handleRedditCallback(
+            @RequestParam("code") String code,
+            @RequestParam(value = "state", required = false) String state) {
+
+        System.out.println("Reddit Callback - State: " + state + ", Code: " + code);
+
+        // 🔹 Mobile App Flow
+        if ("app".equalsIgnoreCase(state)) {
+            try {
+                String deepLinkUrl = "https://quantumshare.quantumparadigm.in/youtube_callback" +
+                        "?code=" + URLEncoder.encode(code, StandardCharsets.UTF_8) +
+                        "&state=" + URLEncoder.encode(state, StandardCharsets.UTF_8) +
+                        "&platform=reddit";
+
+                HttpHeaders headers = new HttpHeaders();
+                headers.setLocation(URI.create(deepLinkUrl));
+                return new ResponseEntity<>(headers, HttpStatus.FOUND);
+            } catch (Exception e) {
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body("Error processing mobile redirect");
+            }
+        }
+
+        // 🔹 Web Flow - Redirect to frontend with code
+        else if ("web".equalsIgnoreCase(state)) {
+            try {
+                String frontendUrl = "https://quantumshare.quantumparadigm.in/reddit-callback" +
+                        "?code=" + URLEncoder.encode(code, StandardCharsets.UTF_8) +
+                        "&status=success";
+
+                HttpHeaders headers = new HttpHeaders();
+                headers.setLocation(URI.create(frontendUrl));
+                return new ResponseEntity<>(headers, HttpStatus.FOUND);
+            } catch (Exception e) {
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body("Error processing web redirect");
+            }
+        }
+
+        // 🔹 Invalid state parameter - return simple error
+        else {
+            return ResponseEntity.badRequest().body("Invalid state parameter");
+        }
+    }
 
     public ResponseEntity<Map<String, String>> getRedditAuth() {
         Map<String, String> authUrlParams = new HashMap<>();
@@ -542,7 +621,8 @@ public class SocialMediaLoginController {
 
     }
 
-    @PostMapping("/callback/reddit")
+    //    @PostMapping("/callback/reddit")
+    @PostMapping("/reddit/exchange-code")
     public ResponseEntity<ResponseStructure<Map<String, String>>> handleRedirectUrl(@RequestParam("code") String code) {
         ResponseStructure<Map<String, String>> responseStructure = new ResponseStructure<>();
         Object userId1 = commonMethod.validateToken(request.getHeader("Authorization"));

@@ -1085,7 +1085,7 @@ public class QuantumShareUserService {
             linkedIn.put("linkedInProfilePic", imageUrl);
             linkedIn.put("linkedInUserName", linkedInUser.getLinkedinProfileUserName());
             data.put("linkedINprofile", linkedIn);
-            data.put("linkedinProfile", linkedIn);
+          //  data.put("linkedinProfile", linkedIn);
         }
 
         if (youTubeUser != null) {
