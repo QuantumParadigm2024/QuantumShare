@@ -542,7 +542,7 @@ public class SocialMediaLoginController {
 
         System.out.println("Reddit Callback - State: " + state + ", Code: " + code);
 
-        // 🔹 Mobile App Flow
+        // 🔹 Mobile App Flow - Redirect to deep link
         if ("app".equalsIgnoreCase(state)) {
             try {
                 String deepLinkUrl = "https://quantumshare.quantumparadigm.in/youtube_callback" +
@@ -559,27 +559,89 @@ public class SocialMediaLoginController {
             }
         }
 
-        // 🔹 Web Flow - Redirect to frontend with code
+        // 🔹 Web Flow - DIRECTLY return JSON response
         else if ("web".equalsIgnoreCase(state)) {
-            try {
-                String frontendUrl = "https://quantumshare.quantumparadigm.in/reddit-callback" +
-                        "?code=" + URLEncoder.encode(code, StandardCharsets.UTF_8) +
-                        "&status=success";
-
-                HttpHeaders headers = new HttpHeaders();
-                headers.setLocation(URI.create(frontendUrl));
-                return new ResponseEntity<>(headers, HttpStatus.FOUND);
-            } catch (Exception e) {
-                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                        .body("Error processing web redirect");
-            }
+            // Simply call the method that returns JSON
+            System.out.println("*** The request is for WEB user ***");
+            return handleWebCallbackJson(code);
         }
 
-        // 🔹 Invalid state parameter - return simple error
+        // 🔹 Invalid state parameter
         else {
-            return ResponseEntity.badRequest().body("Invalid state parameter");
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("status", "error");
+            errorResponse.put("message", "Invalid state parameter");
+            return ResponseEntity.badRequest().body(errorResponse);
         }
     }
+
+    @GetMapping("/callback/reddit/web")
+    public ResponseEntity<Map<String, String>> handleWebCallbackJson(
+            @RequestParam("code") String code) {
+
+        System.out.println("Web JSON Callback - Code: " + code);
+
+        try {
+            Map<String, String> response = new HashMap<>();
+            response.put("status", "success");
+            response.put("code", code);
+            response.put("message", "Authorization code received");
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("status", "error");
+            errorResponse.put("message", "Error processing request");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+
+//    @GetMapping("/callback/reddit")
+//    public ResponseEntity<?> handleRedditCallback(
+//            @RequestParam("code") String code,
+//            @RequestParam(value = "state", required = false) String state) {
+//
+//        System.out.println("Reddit Callback - State: " + state + ", Code: " + code);
+//
+//        // 🔹 Mobile App Flow
+//        if ("app".equalsIgnoreCase(state)) {
+//            try {
+//                String deepLinkUrl = "https://quantumshare.quantumparadigm.in/youtube_callback" +
+//                        "?code=" + URLEncoder.encode(code, StandardCharsets.UTF_8) +
+//                        "&state=" + URLEncoder.encode(state, StandardCharsets.UTF_8) +
+//                        "&platform=reddit";
+//
+//                HttpHeaders headers = new HttpHeaders();
+//                headers.setLocation(URI.create(deepLinkUrl));
+//                return new ResponseEntity<>(headers, HttpStatus.FOUND);
+//            } catch (Exception e) {
+//                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+//                        .body("Error processing mobile redirect");
+//            }
+//        }
+//
+//        // 🔹 Web Flow - Redirect to frontend with code
+//        else if ("web".equalsIgnoreCase(state)) {
+//            try {
+//                String frontendUrl = "https://quantumshare.quantumparadigm.in/reddit-callback" +
+//                        "?code=" + URLEncoder.encode(code, StandardCharsets.UTF_8) +
+//                        "&status=success";
+//
+//                HttpHeaders headers = new HttpHeaders();
+//                headers.setLocation(URI.create(frontendUrl));
+//                return new ResponseEntity<>(headers, HttpStatus.FOUND);
+//            } catch (Exception e) {
+//                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+//                        .body("Error processing web redirect");
+//            }
+//        }
+//
+//        // 🔹 Invalid state parameter - return simple error
+//        else {
+//            return ResponseEntity.badRequest().body("Invalid state parameter");
+//        }
+//    }
 
     public ResponseEntity<Map<String, String>> getRedditAuth() {
         Map<String, String> authUrlParams = new HashMap<>();
